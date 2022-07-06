@@ -31,7 +31,7 @@ parser.add_argument(
 )
 
 
-def print_onnx_model_graph(model_path: str):
+def print_onnx_model_graph(model_path: str) -> None:
     """for debugging"""
     import onnx
     from google.protobuf.json_format import MessageToDict
@@ -42,7 +42,7 @@ def print_onnx_model_graph(model_path: str):
         print(MessageToDict(_output))
 
 
-def load_filters(filters_path: Optional[str]):
+def load_filters(filters_path: Optional[str]) -> Dict[str, Any]:
     """load observations filters"""
     filters = {}
     if filters_path:
@@ -51,7 +51,7 @@ def load_filters(filters_path: Optional[str]):
     return filters
 
 
-def load_graph_io(graphio_path: str):
+def load_graph_io(graphio_path: str) -> Dict[str, Any]:
     """load input/output structure of graph"""
     with open(graphio_path, "r") as f:
         graph_io = json.load(f)
@@ -59,10 +59,16 @@ def load_graph_io(graphio_path: str):
 
 
 def infer(config: Dict[str, str], observations: Dict[str, Union[List[float], np.ndarray]]) -> Dict[str, Any]:
+    """
+    Run inference on given observations vector.
+    This will first load model, graph definition and filters (if any).
+    """
     model_path = config["model_path"]
     assert os.path.exists(model_path)
     graphio = load_graph_io(config["graphio_path"])
     filters = load_filters(config.get("filters_path"))
+
+    sess = rt.InferenceSession(model_path)
     actions = {}
 
     for policy_id, obs in observations.items():
@@ -79,8 +85,6 @@ def infer(config: Dict[str, str], observations: Dict[str, Union[List[float], np.
 
         inputs = {f"{policy_id}/obs:0": numpy.array([obs], dtype=numpy.float32)}
         outputs = {k: v["name"] for k, v in graphio["outputs"].items()}
-
-        sess = rt.InferenceSession(model_path)
         actions[policy_id] = sess.run(output_names=[outputs["actions_0"]], input_feed=inputs)
 
     return actions

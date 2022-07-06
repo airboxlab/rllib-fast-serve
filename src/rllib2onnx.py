@@ -48,7 +48,10 @@ class PolicyConfigAdapter(metaclass=ABCMeta):
     def __init__(self, loaded_config: Dict[str, Any]):
         self._adapted_config = copy.deepcopy(loaded_config)
 
-    def adapt(self, config_override: Optional[Dict[str, Any]] = None):
+    def adapt(
+            self,
+            config_override: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         self._adapted_config["num_workers"] = 1
         self._adapted_config["num_gpus"] = 0
         self._adapted_config.update(config_override or {})
@@ -67,10 +70,10 @@ class SimplePolicyConfigAdapter(PolicyConfigAdapter):
     """simple config adapter that can't return obs/act spaces"""
 
     def obs_space(self) -> gym.spaces.Space:
-        raise NotImplementedError
+        pass
 
     def act_space(self) -> gym.spaces.Space:
-        raise NotImplementedError
+        pass
 
 
 class PolicyConfigWithSpaces(PolicyConfigAdapter):
@@ -86,8 +89,15 @@ class PolicyConfigWithSpaces(PolicyConfigAdapter):
         return self._adapted_config["env_config"]["action_space"]
 
 
-def register_ext_env(env_name: str, obs_space: gym.spaces.Space, act_space: gym.spaces.Space):
-    """create and register a dummy external env"""
+def register_ext_env(
+        env_name: str,
+        obs_space: gym.spaces.Space,
+        act_space: gym.spaces.Space) -> None:
+    """
+    Create and register a dummy external env.
+    This is to avoid drawing a dependency to the (probably)
+    custom env used during training.
+    """
 
     class PseudoEnv(ExternalEnv):
         def __init__(self, observation_space, action_space):
@@ -128,18 +138,22 @@ def restore_config_pkl(checkpoint_file: str) -> Dict[str, Any]:
 def restore(
         alg: str,
         checkpoint_file: str,
-        config_adapter_cls: Type[PolicyConfigAdapter],
+        config_adapter_cls: Optional[Type[PolicyConfigAdapter]] = None,
         cfg_override: Optional[Dict[str, Any]] = None,
-        env: Optional[str] = None
-) -> Trainer:
+        env: Optional[str] = None) -> Trainer:
     """reload agent from config class and checkpoint"""
     config = restore_config_pkl(checkpoint_file)
 
-    config_adapter = config_adapter_cls(config)
-    config = config_adapter.adapt(config_override=cfg_override)
+    assert config_adapter_cls or env, \
+        "env name or config adapter must be provided to retrieve spaces definition"
+
+    config_adapter: Optional[PolicyConfigAdapter] = None
+    if config_adapter_cls:
+        config_adapter = config_adapter_cls(config)
+        config = config_adapter.adapt(config_override=cfg_override)
 
     env_name = env
-    if env_name is None:
+    if not env_name:
         env_name = "transient_env"
         obs_space = config_adapter.obs_space()
         act_space = config_adapter.act_space()
