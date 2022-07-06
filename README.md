@@ -7,7 +7,7 @@ fast inference.
 
 Only `tensorflow` supported for now, but adding support for `pytorch` should be fairly easy.
 
-# Usage
+## Usage
 
 ```shell
 python3 -m venv env
@@ -23,7 +23,7 @@ Notes on dependencies:
 - `numpy` version must align with requirements of `tensorflow` and `onnx`. If you need to change it, check their
   respective compatibility matrix
 
-## Phase 1: transform
+### Phase 1: transform
 
 This will transform an input RLlib checkpoint to several artifacts needed for inference.
 
@@ -60,7 +60,7 @@ Example output directory structure:
         └── variables.index
 ```
 
-## Phase 2: serve
+### Phase 2: serve
 
 Run model inference using ONNX model
 
