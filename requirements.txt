@@ -1,0 +1,7 @@
+numpy==1.19.5
+# only needed for conversion
+ray[rllib]==1.13.0
+tensorflow==2.7.0
+tf2onnx==1.11.1
+# only needed for inference
+onnxruntime==1.9.0
