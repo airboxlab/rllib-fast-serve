@@ -1,3 +1,5 @@
+[![tests](https://github.com/airboxlab/rllib-fast-serve/actions/workflows/test.yml/badge.svg)](https://github.com/airboxlab/rllib-fast-serve/actions/workflows/test.yml)
+
 # rllib-fast-serve
 
 Tools and examples to export policies trained with [Ray RLlib](https://github.com/ray-project/ray) for lightweight and
