@@ -48,9 +48,7 @@ class PolicyConfigAdapter(metaclass=ABCMeta):
     def __init__(self, loaded_config: Dict[str, Any]):
         self._adapted_config = copy.deepcopy(loaded_config)
 
-    def adapt(
-            self,
-            config_override: Optional[Dict[str, Any]] = None):
+    def adapt(self, config_override: Optional[Dict[str, Any]] = None):
         self._adapted_config["num_workers"] = 1
         self._adapted_config["num_gpus"] = 0
         self._adapted_config.update(config_override or {})
@@ -66,11 +64,26 @@ class PolicyConfigAdapter(metaclass=ABCMeta):
 
 
 class SimplePolicyConfigAdapter(PolicyConfigAdapter):
+    """simple config adapter that can't return obs/act spaces"""
+
     def obs_space(self) -> gym.spaces.Space:
-        pass
+        raise NotImplementedError
 
     def act_space(self) -> gym.spaces.Space:
-        pass
+        raise NotImplementedError
+
+
+class PolicyConfigWithSpaces(PolicyConfigAdapter):
+    """
+    config adapter that extracts observation and action
+    spaces from config reloaded from .pkl
+    """
+
+    def obs_space(self):
+        return self._adapted_config["env_config"]["observation_space"]
+
+    def act_space(self):
+        return self._adapted_config["env_config"]["action_space"]
 
 
 def register_ext_env(env_name: str, obs_space: gym.spaces.Space, act_space: gym.spaces.Space):
@@ -230,20 +243,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     assert os.path.exists(args.checkpoint_file)
 
-
-    class PolicyConfigWithSpaces(PolicyConfigAdapter):
-        """
-        simple config adapter that extracts observation and action
-        spaces from config reloaded from .pkl
-        """
-
-        def obs_space(self):
-            return self._adapted_config["env_config"]["observation_space"]
-
-        def act_space(self):
-            return self._adapted_config["env_config"]["action_space"]
-
-
+    # this example requires to have training params.pkl
+    # stored in checkpoint dir
     a = restore(
         alg=args.alg,
         checkpoint_file=args.checkpoint_file,
