@@ -58,6 +58,21 @@ def load_graph_io(graphio_path: str) -> Dict[str, Any]:
     return graph_io
 
 
+def apply_filter(
+        obs: Union[List[float], np.ndarray],
+        filt: Optional[Dict[str, Any]]) -> Union[List[float], np.ndarray]:
+    """apply filter to given observation"""
+    if not filt:
+        return obs
+    if filt["demean"]:
+        obs = obs - np.array(filt["mean"], dtype=numpy.float32)
+    if filt["destd"]:
+        obs = obs / (np.array(filt["std"], dtype=numpy.float32) + 1e-8)
+    if filt["clip"]:
+        obs = np.clip(obs, -filt["clip"], filt["clip"])
+    return obs
+
+
 def infer(config: Dict[str, str], observations: Dict[str, Union[List[float], np.ndarray]]) -> Dict[str, Any]:
     """
     Run inference on given observations vector.
@@ -74,14 +89,7 @@ def infer(config: Dict[str, str], observations: Dict[str, Union[List[float], np.
     for policy_id, obs in observations.items():
 
         if filters:
-            f = filters[policy_id]
-            if f:
-                if f["demean"]:
-                    obs = obs - np.array(f["mean"], dtype=numpy.float32)
-                if f["destd"]:
-                    obs = obs / np.array(f["std"], dtype=numpy.float32)
-                if f["clip"]:
-                    obs = np.clip(obs, -f["clip"], f["clip"])
+            obs = apply_filter(obs=obs, filt=filters[policy_id])
 
         inputs = {f"{policy_id}/obs:0": numpy.array([obs], dtype=numpy.float32)}
         outputs = {k: v["name"] for k, v in graphio["outputs"].items()}
