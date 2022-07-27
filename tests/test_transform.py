@@ -4,7 +4,7 @@ from typing import Dict, Any, Optional, Type
 
 import ray.rllib.agents.ppo as ppo
 
-from src.infer import infer
+from src.infer import infer, apply_filter
 from src.rllib2onnx import (
     restore,
     SimplePolicyConfigAdapter,
@@ -17,6 +17,16 @@ class TestTransform(unittest.TestCase):
 
     def test_train_transform_infer(self):
         self._test(env="CartPole-v0")
+
+    def test_filter_0_std(self):
+        filtered = apply_filter(
+            filt={
+                "demean": True, "destd": True, "clip": None,
+                "mean": 1, "std": 0
+            },
+            obs=[1]
+        )
+        self.assertEqual([0], filtered)
 
     def test_filter(self):
         self._test(
