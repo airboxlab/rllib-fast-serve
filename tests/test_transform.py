@@ -1,3 +1,5 @@
+import json
+import shutil
 import unittest
 import tempfile
 from typing import Dict, Any, Optional, Type
@@ -16,7 +18,10 @@ from src.rllib2onnx import (
 class TestTransform(unittest.TestCase):
 
     def test_train_transform_infer(self):
-        self._test(env="CartPole-v0")
+        self._test(
+            base_output=tempfile.mkdtemp(),
+            env="CartPole-v0"
+        )
 
     def test_filter_0_std(self):
         filtered = apply_filter(
@@ -29,10 +34,19 @@ class TestTransform(unittest.TestCase):
         self.assertEqual([0], filtered)
 
     def test_filter(self):
+        base_output = tempfile.mkdtemp()
         self._test(
+            base_output=base_output,
             env="CartPole-v0",
             trainer_cfg={"observation_filter": "MeanStdFilter"}
         )
+
+        with open(f"{base_output}/filters/filters.json", "r") as f_file:
+            f_def = json.load(f_file)
+            f_pol = f_def["default_policy"]
+            self.assertIsNotNone(f_pol)
+            for key in ["shape", "demean", "destd", "mean", "std"]:
+                self.assertIn(key, f_pol)
 
     def test_config_adapter(self):
 
@@ -46,6 +60,7 @@ class TestTransform(unittest.TestCase):
 
         with self.assertRaises(Exception) as e:
             self._test(
+                base_output=tempfile.mkdtemp(),
                 env="CartPole-v0",
                 config_adapter_cls=FailingPolicyConfigAdapter
             )
@@ -53,6 +68,7 @@ class TestTransform(unittest.TestCase):
 
     def _test(
             self,
+            base_output: str,
             env: Optional[str] = None,
             trainer_cfg: Optional[Dict[str, Any]] = None,
             config_adapter_cls: Optional[Type[PolicyConfigAdapter]] = None
@@ -68,7 +84,10 @@ class TestTransform(unittest.TestCase):
         )
         trainer.train()
         trainer.save("/tmp/rllib_checkpoint")
-        checkpoint_path = "/tmp/rllib_checkpoint/checkpoint_000001/checkpoint-1"
+        params = f"{trainer.logdir}/params.pkl"
+        chkpt_dir = "/tmp/rllib_checkpoint/checkpoint_000001/"
+        shutil.copy(params, chkpt_dir)
+        checkpoint_path = f"{chkpt_dir}/checkpoint-1"
 
         # restore the trained policy
         restored_trainer = restore(
@@ -79,7 +98,6 @@ class TestTransform(unittest.TestCase):
         )
 
         # output an ONNX model
-        base_output = tempfile.mkdtemp()
         rllib_to_onnx(
             agent=restored_trainer,
             output_dir=base_output
